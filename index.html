@@ -402,8 +402,47 @@ function drawFlagTile(x, y, col, row) {
   }
 }
 
+function drawBackground() {
+  // Kelantan-inspired layered pixel scenery behind the level.
+  ctx.fillStyle = '#5c94fc';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const parallax = Math.floor(cameraX * 0.18);
+  // soft cloud clusters
+  const clouds = [[24, 34, 22], [126, 25, 28], [224, 48, 20]];
+  clouds.forEach(([x, y, w]) => {
+    const cx = x - parallax;
+    px(cx, y + 4, w, 7, '#fff'); px(cx + 5, y, w - 11, 5, '#fff');
+    px(cx + 3, y + 9, w - 6, 2, '#dcecff');
+  });
+  // distant hills
+  ctx.fillStyle = '#8bd17c';
+  ctx.beginPath(); ctx.moveTo(0, 157);
+  for (let x = 0; x <= 256; x += 16) ctx.lineTo(x, 157 - (Math.sin((x + parallax) * 0.045) * 10 + 12));
+  ctx.lineTo(256, 208); ctx.lineTo(0, 208); ctx.fill();
+  // nearer forest ridge
+  ctx.fillStyle = '#3a9a5b';
+  ctx.beginPath(); ctx.moveTo(0, 184);
+  for (let x = 0; x <= 256; x += 12) ctx.lineTo(x, 184 - (Math.sin((x + parallax) * 0.08) * 7 + 7));
+  ctx.lineTo(256, 208); ctx.lineTo(0, 208); ctx.fill();
+  // kampung silhouettes and palm trees
+  for (let i = 0; i < 4; i++) {
+    const hx = i * 92 - (parallax % 92) + 28;
+    px(hx, 174, 24, 18, '#7a4b32');
+    ctx.fillStyle = '#5c2b2b';
+    ctx.beginPath(); ctx.moveTo(hx - 5, 174); ctx.lineTo(hx + 12, 162); ctx.lineTo(hx + 29, 174); ctx.fill();
+    px(hx + 7, 183, 5, 9, '#2b4d32'); px(hx + 17, 183, 5, 9, '#2b4d32');
+    px(hx + 11, 178, 5, 6, '#f3c75b');
+  }
+  for (let i = 0; i < 5; i++) {
+    const tx = i * 68 - (parallax % 68) + 12;
+    px(tx, 164, 3, 30, '#6b4827');
+    px(tx - 8, 157, 19, 3, '#176b3b'); px(tx - 5, 151, 13, 3, '#1c8043'); px(tx - 2, 146, 7, 4, '#2b9b4f');
+  }
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBackground();
   ctx.save();
   ctx.translate(-Math.floor(cameraX), 0);
 
