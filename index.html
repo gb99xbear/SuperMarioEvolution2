@@ -299,59 +299,67 @@ function update() {
   document.getElementById("ui-star").innerText = mario.starTimer > 0 ? (Math.ceil(mario.starTimer/60) + "s") : "OFF";
 }
 
-// Recognizable geometric pixel characters, drawn at native 16px scale.
+// Native-resolution pixel-art sprites: layered silhouettes, highlights and outlines.
+function px(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect(Math.round(x), Math.round(y), Math.max(1, w), Math.max(1, h)); }
+
 function drawGoomba(x, y, w, h, facingLeft) {
-  const bob = Math.round(Math.sin(performance.now() / 180) * 0.5);
-  x = Math.round(x); y = Math.round(y + bob);
-  ctx.fillStyle = '#7b3518';
-  ctx.fillRect(x + 2, y + 4, w - 4, h - 5);
-  ctx.fillStyle = '#a94a20';
-  ctx.fillRect(x + 1, y + 6, w - 2, 6);
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(x + 3, y + 5, 4, 4);
-  ctx.fillRect(x + w - 7, y + 5, 4, 4);
-  ctx.fillStyle = '#111';
-  ctx.fillRect(x + (facingLeft ? 4 : 5), y + 6, 2, 3);
-  ctx.fillRect(x + w - (facingLeft ? 5 : 6), y + 6, 2, 3);
-  ctx.fillStyle = '#3b1c12';
-  ctx.fillRect(x, y + h - 3, 7, 3);
-  ctx.fillRect(x + w - 7, y + h - 3, 7, 3);
+  x = Math.round(x); y = Math.round(y + Math.sin(performance.now() / 180));
+  // dark outline / mushroom silhouette
+  px(x + 1, y + 5, w - 2, h - 5, '#351812');
+  px(x + 2, y + 3, w - 4, 8, '#6e2b18');
+  px(x + 4, y + 2, w - 8, 2, '#a94a20');
+  px(x + 2, y + 7, w - 4, 5, '#9b3d1d');
+  // angry brows and eyes
+  px(x + 3, y + 5, 4, 2, '#24100d'); px(x + w - 7, y + 5, 4, 2, '#24100d');
+  px(x + 4, y + 7, 3, 3, '#fff4cf'); px(x + w - 7, y + 7, 3, 3, '#fff4cf');
+  px(x + (facingLeft ? 4 : 5), y + 7, 2, 3, '#111');
+  px(x + w - (facingLeft ? 5 : 6), y + 7, 2, 3, '#111');
+  // feet and sole highlights
+  px(x - 1, y + h - 3, 7, 3, '#3b1712'); px(x + w - 6, y + h - 3, 7, 3, '#3b1712');
+  px(x + 1, y + h - 1, 5, 1, '#d47a35'); px(x + w - 5, y + h - 1, 5, 1, '#d47a35');
 }
 
 function drawMario(x, y, w, h, facing, state, star, dead) {
   x = Math.round(x); y = Math.round(y);
   const rainbow = ['#ffe600', '#ff3b30', '#36d15c', '#3b82f6'];
-  const suit = star ? rainbow[Math.floor(performance.now() / 90) % rainbow.length] : (state === 2 ? '#fff' : '#e3262e');
-  const overalls = star ? '#2447c8' : '#2450d0';
-  const skin = '#f5a15b';
-  ctx.fillStyle = dead ? '#777' : suit;
+  const cap = star ? rainbow[Math.floor(performance.now() / 90) % rainbow.length] : '#e3262e';
+  const shirt = star ? rainbow[Math.floor(performance.now() / 90) % rainbow.length] : (state === 2 ? '#fff' : '#e3262e');
+  const outline = dead ? '#555' : '#27151b';
+  const skin = '#f5a15b', skinHi = '#ffd08b', blue = '#2450d0', darkBlue = '#142b86';
+  const headH = h >= 20 ? 9 : 7;
+  const bodyY = y + headH + 2;
+  // outline silhouette
+  px(x + 1, y + 2, w - 2, h - 3, outline);
   // cap and brim
-  ctx.fillRect(x + 2, y, w - 3, 3);
-  ctx.fillRect(x, y + 2, w - 1, 2);
-  // face, ear, nose
-  ctx.fillStyle = skin;
-  ctx.fillRect(x + 3, y + 4, w - 5, Math.max(4, h * 0.27));
-  ctx.fillRect(facing < 0 ? x + 1 : x + w - 4, y + 6, 3, 3);
-  // hair and eye
-  ctx.fillStyle = '#4a2519';
-  ctx.fillRect(x + (facing < 0 ? w - 6 : 3), y + 4, 3, 3);
-  ctx.fillStyle = '#111';
-  ctx.fillRect(x + (facing < 0 ? 4 : w - 6), y + 6, 2, 2);
-  // moustache
-  ctx.fillRect(x + (facing < 0 ? 2 : w - 7), y + 9, 6, 2);
-  // torso and overalls
-  const bodyY = y + Math.max(9, Math.floor(h * 0.42));
-  ctx.fillStyle = suit;
-  ctx.fillRect(x + 2, bodyY, w - 4, Math.max(4, h - (bodyY - y) - 4));
-  ctx.fillStyle = overalls;
-  ctx.fillRect(x + 3, bodyY + 2, w - 6, Math.max(3, h - (bodyY - y) - 5));
-  // arms
-  ctx.fillStyle = skin;
-  ctx.fillRect(facing < 0 ? x : x + w - 3, bodyY + 1, 3, 5);
-  // shoes
-  ctx.fillStyle = '#6a351e';
-  ctx.fillRect(x, y + h - 3, 6, 3);
-  ctx.fillRect(x + w - 6, y + h - 3, 6, 3);
+  px(x + 2, y, w - 4, 3, cap); px(x, y + 2, w - 1, 2, cap); px(x + 3, y + 1, w - 6, 1, '#ff6868');
+  // face with ear/nose silhouette
+  px(x + 3, y + 4, w - 6, headH - 2, skin);
+  px(x + 4, y + 4, w - 8, 2, skinHi);
+  px(facing < 0 ? x + 1 : x + w - 4, y + 6, 3, 3, skin);
+  // hair, eye and moustache
+  px(x + (facing < 0 ? w - 6 : 3), y + 4, 3, 3, '#4a2519');
+  px(x + (facing < 0 ? 4 : w - 6), y + 6, 2, 2, '#111');
+  px(x + (facing < 0 ? 2 : w - 7), y + 9, 6, 2, '#4a2519');
+  // shirt, overalls bib and straps
+  px(x + 2, bodyY, w - 4, Math.max(3, h - (bodyY - y) - 3), shirt);
+  px(x + 3, bodyY + 2, w - 6, Math.max(3, h - (bodyY - y) - 5), blue);
+  px(x + 4, bodyY + 1, 2, 5, darkBlue); px(x + w - 6, bodyY + 1, 2, 5, darkBlue);
+  // hands and shoes
+  px(facing < 0 ? x : x + w - 3, bodyY + 1, 3, 5, skinHi);
+  px(x, y + h - 3, 6, 3, '#6a351e'); px(x + w - 6, y + h - 3, 6, 3, '#6a351e');
+  px(x + 1, y + h - 1, 5, 1, '#c27438'); px(x + w - 5, y + h - 1, 5, 1, '#c27438');
+}
+
+function drawPowerItem(it) {
+  const x = Math.round(it.x), y = Math.round(it.y), w = it.w, h = it.h;
+  if (it.type === 'M') {
+    px(x + 1, y + 2, w - 2, h - 2, '#351812'); px(x + 2, y + 1, w - 4, 7, '#e3262e');
+    px(x + 3, y + 4, 3, 3, '#fff'); px(x + w - 6, y + 4, 3, 3, '#fff'); px(x + 3, y + 8, w - 6, h - 8, '#f5a15b');
+  } else if (it.type === 'F') {
+    px(x + 5, y + 5, 2, h - 4, '#239447'); px(x + 2, y + 2, 5, 6, '#ff5c87'); px(x + 6, y + 1, 5, 6, '#ffe45c'); px(x + 4, y + 5, 4, 4, '#fff');
+  } else {
+    px(x + 5, y, 3, h, '#fff'); px(x + 1, y + 4, 11, 4, '#ffe600'); px(x + 3, y + 2, 7, 8, '#ffe600'); px(x + 2, y + 5, 9, 3, '#ff4d6d');
+  }
 }
 
 function draw() {
@@ -371,7 +379,10 @@ function draw() {
       } else if (t === 'M' || t === 'F' || t === 'S') {
         ctx.fillStyle = "#fc9838";
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#9b4c12";
+        ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+        ctx.fillStyle = "#fff3b0";
+        ctx.font = "bold 11px monospace";
         ctx.fillText("?", px + 4, py + 12);
       } else if (t === 'P') {
         ctx.fillStyle = "#00a800";
@@ -383,12 +394,7 @@ function draw() {
     }
   }
 
-  items.forEach(it => {
-    if (it.type === 'M') ctx.fillStyle = "#fc3800";
-    else if (it.type === 'F') ctx.fillStyle = "#ff77aa";
-    else if (it.type === 'S') ctx.fillStyle = "#fcfc00";
-    ctx.fillRect(it.x, it.y, it.w, it.h);
-  });
+  items.forEach(it => drawPowerItem(it));
 
   ctx.fillStyle = "#f83800";
   fireballs.forEach(fb => ctx.fillRect(fb.x, fb.y, fb.w, fb.h));
