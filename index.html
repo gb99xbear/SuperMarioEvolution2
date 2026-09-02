@@ -299,6 +299,61 @@ function update() {
   document.getElementById("ui-star").innerText = mario.starTimer > 0 ? (Math.ceil(mario.starTimer/60) + "s") : "OFF";
 }
 
+// Recognizable geometric pixel characters, drawn at native 16px scale.
+function drawGoomba(x, y, w, h, facingLeft) {
+  const bob = Math.round(Math.sin(performance.now() / 180) * 0.5);
+  x = Math.round(x); y = Math.round(y + bob);
+  ctx.fillStyle = '#7b3518';
+  ctx.fillRect(x + 2, y + 4, w - 4, h - 5);
+  ctx.fillStyle = '#a94a20';
+  ctx.fillRect(x + 1, y + 6, w - 2, 6);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + 3, y + 5, 4, 4);
+  ctx.fillRect(x + w - 7, y + 5, 4, 4);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(x + (facingLeft ? 4 : 5), y + 6, 2, 3);
+  ctx.fillRect(x + w - (facingLeft ? 5 : 6), y + 6, 2, 3);
+  ctx.fillStyle = '#3b1c12';
+  ctx.fillRect(x, y + h - 3, 7, 3);
+  ctx.fillRect(x + w - 7, y + h - 3, 7, 3);
+}
+
+function drawMario(x, y, w, h, facing, state, star, dead) {
+  x = Math.round(x); y = Math.round(y);
+  const rainbow = ['#ffe600', '#ff3b30', '#36d15c', '#3b82f6'];
+  const suit = star ? rainbow[Math.floor(performance.now() / 90) % rainbow.length] : (state === 2 ? '#fff' : '#e3262e');
+  const overalls = star ? '#2447c8' : '#2450d0';
+  const skin = '#f5a15b';
+  ctx.fillStyle = dead ? '#777' : suit;
+  // cap and brim
+  ctx.fillRect(x + 2, y, w - 3, 3);
+  ctx.fillRect(x, y + 2, w - 1, 2);
+  // face, ear, nose
+  ctx.fillStyle = skin;
+  ctx.fillRect(x + 3, y + 4, w - 5, Math.max(4, h * 0.27));
+  ctx.fillRect(facing < 0 ? x + 1 : x + w - 4, y + 6, 3, 3);
+  // hair and eye
+  ctx.fillStyle = '#4a2519';
+  ctx.fillRect(x + (facing < 0 ? w - 6 : 3), y + 4, 3, 3);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(x + (facing < 0 ? 4 : w - 6), y + 6, 2, 2);
+  // moustache
+  ctx.fillRect(x + (facing < 0 ? 2 : w - 7), y + 9, 6, 2);
+  // torso and overalls
+  const bodyY = y + Math.max(9, Math.floor(h * 0.42));
+  ctx.fillStyle = suit;
+  ctx.fillRect(x + 2, bodyY, w - 4, Math.max(4, h - (bodyY - y) - 4));
+  ctx.fillStyle = overalls;
+  ctx.fillRect(x + 3, bodyY + 2, w - 6, Math.max(3, h - (bodyY - y) - 5));
+  // arms
+  ctx.fillStyle = skin;
+  ctx.fillRect(facing < 0 ? x : x + w - 3, bodyY + 1, 3, 5);
+  // shoes
+  ctx.fillStyle = '#6a351e';
+  ctx.fillRect(x, y + h - 3, 6, 3);
+  ctx.fillRect(x + w - 6, y + h - 3, 6, 3);
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
@@ -338,23 +393,14 @@ function draw() {
   ctx.fillStyle = "#f83800";
   fireballs.forEach(fb => ctx.fillRect(fb.x, fb.y, fb.w, fb.h));
 
+  // Recognizable Goomba sprite
   enemies.forEach(e => {
-    if (e.alive) {
-      ctx.fillStyle = "#743800";
-      ctx.fillRect(e.x, e.y, e.w, e.h);
-    }
+    if (e.alive) drawGoomba(e.x, e.y, e.w, e.h, e.vx < 0);
   });
 
+  // Recognizable Mario sprite
   if (mario.invulnerableTimer % 4 < 2) {
-    if (mario.starTimer > 0) {
-      const colors = ["#fcfc00", "#fc3800", "#00a800", "#fcfcfc"];
-      ctx.fillStyle = colors[Math.floor(Date.now() / 60) % colors.length];
-    } else if (mario.state === 2) {
-      ctx.fillStyle = "#fcfcfc";
-    } else {
-      ctx.fillStyle = mario.dead ? "#555" : "#e40058";
-    }
-    ctx.fillRect(mario.x, mario.y, mario.w, mario.h);
+    drawMario(mario.x, mario.y, mario.w, mario.h, mario.vx < 0 ? -1 : 1, mario.state, mario.starTimer > 0, mario.dead);
   }
 
   ctx.restore();
