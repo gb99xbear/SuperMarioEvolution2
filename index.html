@@ -2,599 +2,385 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Super Mario Evolution 2</title>
+  <title>Super Mario Evolution 2 - Power-Ups & Refined 1-1</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #111;
+      margin: 0;
+      background: #151515;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
+      height: 100vh;
       overflow: hidden;
-      touch-action: none;
-    }
-    #gameWrap {
-      position: relative;
-      width: 768px;
-      max-width: 100vw;
+      font-family: monospace;
+      color: #fff;
     }
     canvas {
-      display: block;
-      width: 100%;
+      border: 3px solid #444;
       background: #5c94fc;
       image-rendering: pixelated;
-      image-rendering: crisp-edges;
-      aspect-ratio: 256/240;
     }
-    #controls {
-      position: fixed;
-      bottom: 10px;
-      left: 0; right: 0;
+    .hud {
+      margin-bottom: 8px;
+      font-size: 14px;
       display: flex;
-      justify-content: space-between;
-      padding: 0 20px;
-      pointer-events: none;
-      z-index: 10;
-    }
-    #controls button {
-      pointer-events: auto;
-      width: 70px; height: 70px;
-      border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.3);
-      background: rgba(255,255,255,0.15);
-      color: #fff;
-      font-size: 24px;
-      font-weight: bold;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
-    #controls .dpad {
-      display: grid;
-      grid-template-columns: 70px 70px 70px;
-      grid-template-rows: 70px 70px;
-      gap: 4px;
-    }
-    #controls .dpad button { width: 70px; height: 70px; }
-    #controls .actions {
-      display: flex;
-      gap: 10px;
-      align-items: flex-end;
-    }
-    #controls .actions button {
-      width: 80px; height: 80px;
-      font-size: 18px;
-    }
-    @media (min-width: 768px) {
-      #controls { display: none; }
+      gap: 20px;
     }
   </style>
 </head>
 <body>
-  <div id="gameWrap">
-    <canvas id="game" width="256" height="240"></canvas>
-  </div>
-  <div id="controls">
-    <div class="dpad">
-      <button data-key="ArrowLeft" style="grid-column:1;grid-row:2;">◀</button>
-      <button data-key="ArrowUp" style="grid-column:2;grid-row:1;">▲</button>
-      <button data-key="ArrowRight" style="grid-column:3;grid-row:2;">▶</button>
-    </div>
-    <div class="actions">
-      <button data-key="KeyZ">A</button>
-      <button data-key="KeyX">B</button>
-    </div>
-  </div>
-  <script>
-    // ── 1. Canvas setup ──
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
-    const W = 256, H = 240;
 
-    // ── Input ──
-    const keys = {};
-    const touchKeys = {};
-    document.addEventListener('keydown', e => { keys[e.code] = true; if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault(); });
-    document.addEventListener('keyup', e => { keys[e.code] = false; });
-    // Touch controls
-    document.querySelectorAll('#controls button').forEach(btn => {
-      const k = btn.dataset.key;
-      btn.addEventListener('touchstart', e => { e.preventDefault(); touchKeys[k] = true; keys[k] = true; });
-      btn.addEventListener('touchend', e => { e.preventDefault(); touchKeys[k] = false; keys[k] = false; });
-      btn.addEventListener('touchcancel', e => { touchKeys[k] = false; keys[k] = false; });
-      btn.addEventListener('mousedown', e => { keys[k] = true; });
-      btn.addEventListener('mouseup', e => { keys[k] = false; });
+<div class="hud">
+  <span>STATUS: <b id="ui-state">SMALL</b></span>
+  <span>SCORE: <b id="ui-score">00000</b></span>
+  <span>STAR: <b id="ui-star">OFF</b></span>
+</div>
+<canvas id="game" width="256" height="240"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.style.width = "768px";
+canvas.style.height = "720px";
+
+const TILE_SIZE = 16;
+const GRAVITY = 0.28;
+
+const keys = {};
+window.addEventListener("keydown", e => {
+  if (e.code === "KeyZ" || e.code === "KeyJ") shootFireball();
+  keys[e.code] = true;
+});
+window.addEventListener("keyup", e => keys[e.code] = false);
+
+// Peta dibaiki: Tiada paip melebihi 3 blok, lubang maksimum 2 blok (boleh lompat terus)
+let rawMap = [
+  "....................................................................................................",
+  "....................................................................................................",
+  "....................................................................................................",
+  "....................................................................................................",
+  "....................................................................................................",
+  "....................................................................................................",
+  "....................................................................................................",
+  "....................................................................................................",
+  "..................................................................................L.................",
+  "....................#M#.......................#S#.................................L.......####......",
+  ".............................F....................................................L.......#..#......",
+  "...........................####...........................................#.......L.......#..#......",
+  "..................P........####.........P...............P................##.......L.......#..#......",
+  "###################..####################..##############..################..#######################",
+  "###################..####################..##############..################..#######################"
+].map(row => row.split(\'\'));
+
+const mapWidth = rawMap[0].length;
+const mapHeight = rawMap.length;
+
+let score = 0;
+let cameraX = 0;
+let win = false;
+
+// 0: Small, 1: Super, 2: Fire
+const mario = {
+  x: 24,
+  y: 160,
+  vx: 0,
+  vy: 0,
+  w: 12,
+  h: 15,
+  state: 0,
+  grounded: false,
+  dead: false,
+  starTimer: 0,
+  invulnerableTimer: 0
+};
+
+const items = [];
+const fireballs = [];
+const enemies = [
+  { x: 180, y: 190, vx: -0.5, w: 14, h: 14, alive: true },
+  { x: 360, y: 190, vx: -0.5, w: 14, h: 14, alive: true },
+  { x: 620, y: 190, vx: -0.5, w: 14, h: 14, alive: true },
+  { x: 800, y: 190, vx: -0.5, w: 14, h: 14, alive: true }
+];
+
+function getTile(tx, ty) {
+  if (tx < 0 || tx >= mapWidth || ty < 0 || ty >= mapHeight) return \'.\';
+  return rawMap[ty][tx];
+}
+
+function isSolid(tile) {
+  return tile === \'#\' || tile === \'P\' || tile === \'M\' || tile === \'F\' || tile === \'S\';
+}
+
+function checkTileCollision(x, y, w, h) {
+  const sx = Math.floor(x / TILE_SIZE);
+  const ex = Math.floor((x + w - 0.1) / TILE_SIZE);
+  const sy = Math.floor(y / TILE_SIZE);
+  const ey = Math.floor((y + h - 0.1) / TILE_SIZE);
+
+  for (let ty = sy; ty <= ey; ty++) {
+    for (let tx = sx; tx <= ex; tx++) {
+      if (isSolid(getTile(tx, ty))) {
+        return { hit: true, tx, ty, tile: getTile(tx, ty) };
+      }
+    }
+  }
+  return { hit: false };
+}
+
+function triggerBlock(tx, ty, tile) {
+  if (tile === \'M\' || tile === \'F\' || tile === \'S\') {
+    rawMap[ty][tx] = \'#\';
+    items.push({
+      type: tile,
+      x: tx * TILE_SIZE,
+      y: (ty - 1) * TILE_SIZE,
+      vx: tile === \'F\' ? 0 : 1,
+      vy: tile === \'S\' ? -3 : -1,
+      w: 12,
+      h: 12,
+      grounded: false
     });
-    const isDown = k => keys[k] || touchKeys[k];
+  }
+}
 
-    // ── 2. Tilemap (World 1-1 clone, 212 columns × 15 rows of 16px tiles) ──
-    // Tile types: . = air, # = ground/brick, ? = question, P = pipe, F = flagpole
-    // Row 0-12 = air, Row 13 = ground level, Row 14 = ground
-    function makeTilemap() {
-      const rows = 15, cols = 212;
-      const map = Array.from({length: rows}, () => Array(cols).fill('.'));
-      // Ground (rows 13-14)
-      for (let c = 0; c < cols; c++) {
-        map[13][c] = '#';
-        map[14][c] = '#';
-      }
-      // Gaps (pitfalls)
-      [40,41, 83,84, 130,131].forEach(c => { map[13][c] = '.'; map[14][c] = '.'; });
-      // First brick row
-      const brickRow = 9;
-      // Section 1: question blocks
-      [[16,9],[21,9],[22,9],[23,9]].forEach(([c,r]) => { map[r][c] = '?'; });
-      // Section 2: bricks + questions
-      for (let c = 34; c <= 38; c++) map[brickRow][c] = '#';
-      map[brickRow][36] = '?';
-      // Section 3: ascending blocks
-      for (let c = 52; c <= 56; c++) map[brickRow][c] = '#';
-      map[brickRow][54] = '?';
-      // Section 4: over gap area
-      for (let c = 62; c <= 66; c++) { map[10][c] = '#'; map[11][c] = '#'; map[12][c] = '#'; }
-      // Section 5: bricks
-      for (let c = 78; c <= 81; c++) map[brickRow][c] = '#';
-      map[brickRow][80] = '?';
-      // Section 6: staircase after gap
-      for (let c = 87; c <= 95; c++) {
-        const h = c - 87;
-        for (let r = 13 - h; r <= 12; r++) map[r][c] = '#';
-      }
-      // Section 7: bricks
-      for (let c = 100; c <= 104; c++) map[brickRow][c] = '#';
-      map[brickRow][102] = '?';
-      // Section 8: staircase
-      for (let c = 118; c <= 126; c++) {
-        const h = c - 118;
-        for (let r = 12 - h; r <= 12; r++) map[r][c] = '#';
-      }
-      // Section 9: final bricks
-      for (let c = 140; c <= 143; c++) map[brickRow][c] = '#';
-      map[brickRow][141] = '?';
-      // Section 10: staircase
-      for (let c = 150; c <= 158; c++) {
-        const h = c - 150;
-        for (let r = 12 - h; r <= 12; r++) map[r][c] = '#';
-      }
-      // Pipe columns
-      [[18,10,2],[28,10,2],[38,10,3],[55,10,1],[71,10,3],[84,9,4],[108,9,4],[136,9,4],[154,10,2]].forEach(([c,top,h]) => {
-        for (let r = top; r < top + h; r++) map[r][c] = 'P';
-        map[top-1][c] = 'P'; // lip
-      });
-      // Flagpole at end
-      map[4][190] = 'F';
-      map[5][190] = 'F';
-      map[6][190] = 'F';
-      map[7][190] = 'F';
-      map[8][190] = 'F';
-      return map;
+function shootFireball() {
+  if (mario.state !== 2 || mario.dead || fireballs.length >= 2) return;
+  fireballs.push({
+    x: mario.x + (mario.vx >= 0 ? mario.w : -8),
+    y: mario.y + 4,
+    vx: mario.vx >= 0 ? 3.5 : -3.5,
+    vy: 1,
+    w: 6,
+    h: 6
+  });
+}
+
+function damageMario() {
+  if (mario.starTimer > 0 || mario.invulnerableTimer > 0) return;
+  if (mario.state > 0) {
+    mario.state = 0;
+    mario.h = 15;
+    mario.invulnerableTimer = 120;
+  } else {
+    mario.dead = true;
+  }
+}
+
+function update() {
+  if (mario.dead || win) return;
+
+  if (mario.starTimer > 0) mario.starTimer--;
+  if (mario.invulnerableTimer > 0) mario.invulnerableTimer--;
+
+  if (keys["ArrowRight"] || keys["KeyD"]) mario.vx += 0.15;
+  else if (keys["ArrowLeft"] || keys["KeyA"]) mario.vx -= 0.15;
+  else mario.vx *= 0.82;
+
+  const maxSpeed = keys["ShiftLeft"] ? 2.5 : 1.8;
+  mario.vx = Math.max(Math.min(mario.vx, maxSpeed), -maxSpeed);
+
+  if ((keys["Space"] || keys["ArrowUp"] || keys["KeyW"]) && mario.grounded) {
+    mario.vy = -6.2;
+    mario.grounded = false;
+  }
+
+  mario.vy += GRAVITY;
+  if (mario.vy > 7) mario.vy = 7;
+
+  mario.x += mario.vx;
+  let colX = checkTileCollision(mario.x, mario.y, mario.w, mario.h);
+  if (colX.hit) {
+    mario.x -= mario.vx;
+    mario.vx = 0;
+  }
+
+  mario.y += mario.vy;
+  mario.grounded = false;
+  let colY = checkTileCollision(mario.x, mario.y, mario.w, mario.h);
+  if (colY.hit) {
+    if (mario.vy > 0) {
+      mario.grounded = true;
+    } else if (mario.vy < 0) {
+      triggerBlock(colY.tx, colY.ty, colY.tile);
     }
-    const tilemap = makeTilemap();
-    const T = 16;
-    const tileAt = (x,y) => {
-      if (x<0 || y<0 || y>=15 || x>=212) return '#';
-      return tilemap[y][x];
-    };
-    const isSolid = t => t==='#'||t==='?'||t==='P';
-    const isGround = t => t==='#'||t==='?';
+    mario.y -= mario.vy;
+    mario.vy = 0;
+  }
 
-    // ── 3. Game Objects ──
-    let state = 'TITLE';
-    let score = 0;
-    let coins = 0;
-    let time = 400;
-    let timeAcc = 0;
+  if (mario.y > 240) mario.dead = true;
 
-    const mario = {
-      x: 48, y: 192, w: 12, h: 16,
-      vx: 0, vy: 0,
-      onGround: false,
-      dead: false,
-      facing: 1,
-      frame: 0, frameTimer: 0,
-      jumpHeld: false,
-      jumpTime: 0,
-      invincible: 0,
-    };
+  const currentTileX = Math.floor((mario.x + mario.w / 2) / TILE_SIZE);
+  const currentTileY = Math.floor((mario.y + mario.h / 2) / TILE_SIZE);
+  if (getTile(currentTileX, currentTileY) === \'L\') win = true;
 
-    const enemies = [];
-    const particles = [];
-    const questionItems = {};
+  if (mario.x - cameraX > 110) cameraX = mario.x - 110;
+  if (mario.x < cameraX) mario.x = cameraX;
 
-    function spawnGoomba(x, y) {
-      enemies.push({
-        x, y, w: 16, h: 16,
-        vx: -0.6, vy: 0,
-        dead: false,
-        deadTimer: 0,
-        type: 'goomba'
-      });
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    it.vy += GRAVITY;
+    it.x += it.vx;
+    if (checkTileCollision(it.x, it.y, it.w, it.h).hit) it.vx *= -1;
+
+    it.y += it.vy;
+    const itColY = checkTileCollision(it.x, it.y, it.w, it.h);
+    if (itColY.hit) {
+      it.y -= it.vy;
+      if (it.type === \'S\') it.vy = -3.5;
+      else { it.vy = 0; it.grounded = true; }
     }
+    if (mario.x < it.x + it.w && mario.x + mario.w > it.x &&
+        mario.y < it.y + it.h && mario.y + mario.h > it.y) {
+      if (it.type === \'M\') {
+        if (mario.state === 0) { mario.state = 1; mario.y -= 7; mario.h = 22; }
+      } else if (it.type === \'F\') {
+        mario.state = 2;
+        if (mario.h === 15) { mario.y -= 7; mario.h = 22; }
+      } else if (it.type === \'S\') {
+        mario.starTimer = 600;
+      }
+      score += 1000;
+      items.splice(i, 1);
+    }
+  }
 
-    function resetGame() {
-      mario.x = 48; mario.y = 192; mario.vx = 0; mario.vy = 0;
-      mario.onGround = false; mario.dead = false;
-      mario.facing = 1; mario.frame = 0;
-      mario.jumpTime = 0; mario.invincible = 0;
-      enemies.length = 0;
-      particles.length = 0;
-      score = 0; coins = 0; time = 400; timeAcc = 0;
-      cameraX = 0;
-      // Spawn enemies
-      [[80,192],[95,192],[120,192],[145,192],[165,192],[180,192]].forEach(([x,y]) => spawnGoomba(x,y));
-      // Clear all question mark items
-      for (let r = 0; r < 15; r++)
-        for (let c = 0; c < 212; c++)
-          if (tilemap[r][c] === '?') questionItems[c+','+r] = true;
-      state = 'PLAYING';
+  for (let i = fireballs.length - 1; i >= 0; i--) {
+    const fb = fireballs[i];
+    fb.x += fb.vx;
+    fb.y += fb.vy;
+    fb.vy += GRAVITY;
+
+    if (checkTileCollision(fb.x, fb.y, fb.w, fb.h).hit) {
+      fb.vy = -2.8;
     }
 
-    // ── 4. Camera ──
-    let cameraX = 0;
-
-    // ── 5. Physics Constants ──
-    const GRAVITY = 0.28;
-    const MAX_FALL = 6;
-    const WALK_ACCEL = 0.25;
-    const FRICTION = 0.15;
-    const MAX_WALK = 2.5;
-    const JUMP_VEL = -4.8;
-    const JUMP_HOLD_FORCE = -0.15;
-    const MAX_JUMP_TIME = 12;
-
-    // ── 6. Collision ──
-    function aabb(a, b) {
-      return a.x < b.x + b.w && a.x + a.w > b.x &&
-             a.y < b.y + b.h && a.y + a.h > b.y;
+    if (fb.x > cameraX + 270 || fb.x < cameraX - 20 || fb.y > 240) {
+      fireballs.splice(i, 1);
+      continue;
     }
 
-    function solidAt(px, py, w, h) {
-      const left = Math.floor(px / T);
-      const right = Math.floor((px + w - 1) / T);
-      const top = Math.floor(py / T);
-      const bottom = Math.floor((py + h - 1) / T);
-      for (let r = top; r <= bottom; r++)
-        for (let c = left; c <= right; c++)
-          if (isSolid(tileAt(c, r))) return true;
-      return false;
-    }
-
-    function resolveCollisions(obj) {
-      // Horizontal
-      if (obj.vx !== 0) {
-        obj.x += obj.vx;
-        if (solidAt(obj.x, obj.y, obj.w, obj.h)) {
-          obj.x -= obj.vx;
-          obj.vx = 0;
-        }
+    let hit = false;
+    enemies.forEach(e => {
+      if (!hit && e.alive && fb.x < e.x + e.w && fb.x + fb.w > e.x && fb.y < e.y + e.h && fb.y + fb.h > e.y) {
+        e.alive = false;
+        hit = true;
+        score += 200;
       }
-      // Vertical
-      obj.vy = Math.min(obj.vy, MAX_FALL);
-      obj.y += obj.vy;
-      if (solidAt(obj.x, obj.y, obj.w, obj.h)) {
-        if (obj.vy > 0) {
-          obj.y = Math.floor((obj.y + obj.h) / T) * T - obj.h;
-          obj.vy = 0;
-          obj.onGround = true;
-        } else if (obj.vy < 0) {
-          obj.y = Math.floor(obj.y / T) * T + T;
-          obj.vy = 0;
-          // Hit question block from below
-          const hitCol = Math.floor((obj.x + obj.w/2) / T);
-          const hitRow = Math.floor(obj.y / T) - 1;
-          if (hitRow >= 0 && tileAt(hitCol, hitRow) === '?') {
-            hitQuestion(hitCol, hitRow);
-          }
-        }
+    });
+    if (hit) { fireballs.splice(i, 1); }
+  }
+
+  enemies.forEach(e => {
+    if (!e.alive) return;
+    e.x += e.vx;
+    if (checkTileCollision(e.x, e.y, e.w, e.h).hit) e.vx *= -1;
+
+    if (mario.x < e.x + e.w && mario.x + mario.w > e.x &&
+        mario.y < e.y + e.h && mario.y + mario.h > e.y) {
+      if (mario.starTimer > 0) {
+        e.alive = false;
+        score += 200;
+      } else if (mario.vy > 0 && mario.y + mario.h - e.y < 8) {
+        e.alive = false;
+        mario.vy = -3.8;
+        score += 100;
       } else {
-        obj.onGround = false;
+        damageMario();
       }
     }
+  });
 
-    function hitQuestion(col, row) {
-      const key = col+','+row;
-      if (!questionItems[key]) return;
-      delete questionItems[key];
-      tilemap[row][col] = '#';
-      coins++;
-      score += 200;
-      // Coin particle
-      particles.push({ x: col*T+4, y: row*T-4, vy: -2, life: 30, type: 'coin' });
-    }
+  const stateNames = ["SMALL", "SUPER", "FIRE"];
+  document.getElementById("ui-state").innerText = stateNames[mario.state];
+  document.getElementById("ui-score").innerText = String(score).padStart(5, \'0\');
+  document.getElementById("ui-star").innerText = mario.starTimer > 0 ? (Math.ceil(mario.starTimer/60) + "s") : "OFF";
+}
 
-    // ── 7. Update ──
-    function update() {
-      if (state === 'TITLE') return;
-      if (state === 'GAME_OVER' || state === 'WIN') return;
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.translate(-Math.floor(cameraX), 0);
 
-      // Timer
-      timeAcc++;
-      if (timeAcc >= 18) { timeAcc = 0; time--; if (time <= 0) { mario.dead = true; } }
+  for (let r = 0; r < mapHeight; r++) {
+    for (let c = 0; c < mapWidth; c++) {
+      const t = rawMap[r][c];
+      const px = c * TILE_SIZE;
+      const py = r * TILE_SIZE;
 
-      // ── Mario Input ──
-      if (!mario.dead) {
-        let move = 0;
-        if (isDown('ArrowLeft') || isDown('KeyA')) move = -1;
-        if (isDown('ArrowRight') || isDown('KeyD')) move = 1;
-        if (move !== 0) mario.facing = move;
-
-        // Acceleration
-        if (move !== 0) mario.vx += move * WALK_ACCEL;
-        else {
-          if (mario.onGround) mario.vx *= 0.8;
-          else mario.vx *= 0.95;
-        }
-        if (Math.abs(mario.vx) > MAX_WALK) mario.vx = Math.sign(mario.vx) * MAX_WALK;
-        if (Math.abs(mario.vx) < 0.1) mario.vx = 0;
-
-        // Jump
-        if ((isDown('ArrowUp') || isDown('KeyW') || isDown('Space') || isDown('KeyZ') || isDown('KeyX'))) {
-          if (mario.onGround && !mario.jumpHeld) {
-            mario.vy = JUMP_VEL;
-            mario.jumpHeld = true;
-            mario.jumpTime = 0;
-          }
-          if (mario.jumpHeld && mario.jumpTime < MAX_JUMP_TIME && mario.vy < 0) {
-            mario.vy += JUMP_HOLD_FORCE;
-            mario.jumpTime++;
-          }
-        } else {
-          mario.jumpHeld = false;
-          mario.jumpTime = MAX_JUMP_TIME;
-        }
-      }
-
-      // ── Mario Physics ──
-      if (!mario.dead) {
-        mario.vy += GRAVITY;
-        resolveCollisions(mario);
-
-        // Pitfall
-        if (mario.y > H) { mario.dead = true; }
-
-        // Animation
-        if (mario.onGround && Math.abs(mario.vx) > 0.3) {
-          mario.frameTimer++;
-          if (mario.frameTimer > 6) { mario.frameTimer = 0; mario.frame = (mario.frame + 1) % 3; }
-        } else if (mario.onGround) {
-          mario.frame = 0;
-        }
-
-        // Flagpole check
-        const fc = Math.floor((mario.x + mario.w/2) / T);
-        if (fc >= 188 && fc <= 192) {
-          const fr = Math.floor(mario.y / T);
-          if (fr >= 4 && fr <= 8 && tileAt(190, fr) === 'F') { state = 'WIN'; }
-        }
-
-        // Camera
-        const targetCam = Math.max(0, mario.x - 80);
-        cameraX += (targetCam - cameraX) * 0.1;
-        cameraX = Math.max(0, cameraX);
-      }
-
-      // ── Enemies ──
-      for (let i = enemies.length - 1; i >= 0; i--) {
-        const e = enemies[i];
-        if (e.dead) { e.deadTimer++; if (e.deadTimer > 30) enemies.splice(i, 1); continue; }
-        e.vy += GRAVITY;
-        e.x += e.vx;
-        // Wall collision
-        if (solidAt(e.x, e.y, e.w, e.h)) {
-          e.x -= e.vx;
-          e.vx *= -1;
-        }
-        e.y += e.vy;
-        if (solidAt(e.x, e.y, e.w, e.h)) {
-          if (e.vy > 0) {
-            e.y = Math.floor((e.y + e.h) / T) * T - e.h;
-            e.vy = 0;
-          }
-        }
-        // Pitfall
-        if (e.y > H) { enemies.splice(i, 1); continue; }
-
-        // Mario collision
-        if (!mario.dead && aabb(mario, e)) {
-          if (mario.vy > 0 && mario.y + mario.h - e.y < 12) {
-            // Stomp
-            e.dead = true;
-            mario.vy = -3.5;
-            score += 100;
-          } else if (mario.invincible <= 0) {
-            mario.dead = true;
-          }
-        }
-      }
-
-      // ── Particles ──
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.y += p.vy;
-        p.life--;
-        if (p.life <= 0) particles.splice(i, 1);
-      }
-
-      if (mario.dead) {
-        mario.vy += GRAVITY;
-        mario.y += mario.vy;
-        if (mario.y > H + 32) state = 'GAME_OVER';
+      if (t === \'#\') {
+        ctx.fillStyle = "#b84418";
+        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+      } else if (t === \'M\' || t === \'F\' || t === \'S\') {
+        ctx.fillStyle = "#fc9838";
+        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+        ctx.fillStyle = "#fff";
+        ctx.fillText("?", px + 4, py + 12);
+      } else if (t === \'P\') {
+        ctx.fillStyle = "#00a800";
+        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+      } else if (t === \'L\') {
+        ctx.fillStyle = "#fcfcfc";
+        ctx.fillRect(px + 6, py, 4, TILE_SIZE);
       }
     }
+  }
 
-    // ── 8. Render ──
-    function draw() {
-      ctx.fillStyle = '#5c94fc';
-      ctx.fillRect(0, 0, W, H);
+  items.forEach(it => {
+    if (it.type === \'M\') ctx.fillStyle = "#fc3800";
+    else if (it.type === \'F\') ctx.fillStyle = "#ff77aa";
+    else if (it.type === \'S\') ctx.fillStyle = "#fcfc00";
+    ctx.fillRect(it.x, it.y, it.w, it.h);
+  });
 
-      // Tiles
-      const startCol = Math.floor(cameraX / T);
-      const endCol = Math.min(211, Math.ceil((cameraX + W) / T));
-      for (let r = 0; r < 15; r++) {
-        for (let c = startCol; c <= endCol; c++) {
-          const t = tileAt(c, r);
-          const x = c * T - cameraX;
-          const y = r * T;
-          if (t === '#') {
-            ctx.fillStyle = '#c84c0c';
-            ctx.fillRect(Math.floor(x), y, T, T);
-            ctx.fillStyle = '#a83800';
-            ctx.fillRect(Math.floor(x)+1, y+1, T-2, 1);
-            ctx.fillRect(Math.floor(x)+1, y+1, 1, T-2);
-          } else if (t === '?') {
-            const hasCoin = questionItems[c+','+r];
-            ctx.fillStyle = '#fc9838';
-            ctx.fillRect(Math.floor(x), y, T, T);
-            ctx.fillStyle = '#d07000';
-            ctx.fillRect(Math.floor(x)+2, y+2, T-4, T-4);
-            if (hasCoin) {
-              ctx.fillStyle = '#fff';
-              ctx.font = '8px monospace';
-              ctx.fillText('?', Math.floor(x)+5, y+12);
-            }
-          } else if (t === 'P') {
-            ctx.fillStyle = '#00a800';
-            ctx.fillRect(Math.floor(x), y, T, T);
-            ctx.fillStyle = '#008000';
-            ctx.fillRect(Math.floor(x)+2, y, T-4, T);
-            ctx.fillRect(Math.floor(x), y, T, 2);
-          } else if (t === 'F') {
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(Math.floor(x)+7, y, 2, T);
-            ctx.fillStyle = '#ff0';
-            ctx.fillRect(Math.floor(x)+4, y, 8, 3);
-          }
-        }
-      }
+  ctx.fillStyle = "#f83800";
+  fireballs.forEach(fb => ctx.fillRect(fb.x, fb.y, fb.w, fb.h));
 
-      // Particles
-      ctx.fillStyle = '#ff0';
-      particles.forEach(p => {
-        ctx.fillRect(Math.floor(p.x - cameraX), Math.floor(p.y), 6, 6);
-      });
-
-      // Enemies
-      enemies.forEach(e => {
-        if (e.dead && e.deadTimer > 0) {
-          ctx.fillStyle = '#8b4513';
-          ctx.fillRect(Math.floor(e.x - cameraX), e.y, e.w, e.h/2);
-          return;
-        }
-        // Body
-        ctx.fillStyle = '#8b4513';
-        ctx.fillRect(Math.floor(e.x - cameraX), e.y, e.w, e.h);
-        // Eyes
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(Math.floor(e.x - cameraX + 3), e.y + 4, 3, 3);
-        ctx.fillRect(Math.floor(e.x - cameraX + 10), e.y + 4, 3, 3);
-        ctx.fillStyle = '#000';
-        ctx.fillRect(Math.floor(e.x - cameraX + (e.vx < 0 ? 6 : 5)), e.y + 5, 2, 2);
-        ctx.fillRect(Math.floor(e.x - cameraX + (e.vx < 0 ? 13 : 12)), e.y + 5, 2, 2);
-        // Feet
-        ctx.fillStyle = '#654321';
-        ctx.fillRect(Math.floor(e.x - cameraX), e.y + e.h - 4, 7, 4);
-        ctx.fillRect(Math.floor(e.x - cameraX + 9), e.y + e.h - 4, 7, 4);
-      });
-
-      // Mario
-      if (!mario.dead || (mario.dead && Math.floor(mario.y) < H)) {
-        const sx = Math.floor(mario.x - cameraX);
-        const sy = Math.floor(mario.y);
-        // Body (red)
-        ctx.fillStyle = '#e00000';
-        ctx.fillRect(sx + 2, sy + 4, 8, 8);
-        // Head (skin)
-        ctx.fillStyle = '#fca044';
-        ctx.fillRect(sx + 2, sy, 8, 5);
-        // Hat (red)
-        ctx.fillStyle = '#e00000';
-        ctx.fillRect(sx, sy, 12, 3);
-        // Eyes
-        ctx.fillStyle = '#000';
-        ctx.fillRect(sx + (mario.facing < 0 ? 7 : 3), sy + 2, 2, 2);
-        // Overalls (blue)
-        ctx.fillStyle = '#0000c0';
-        ctx.fillRect(sx + 2, sy + 10, 8, 4);
-        // Shoes (brown)
-        ctx.fillStyle = '#654321';
-        ctx.fillRect(sx, sy + 14, 5, 2);
-        ctx.fillRect(sx + 7, sy + 14, 5, 2);
-      }
-
-      // HUD
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 8px monospace';
-      ctx.fillText('SCORE', 8, 10);
-      ctx.fillText(String(score).padStart(6), 8, 20);
-      ctx.fillText('COINS × ' + coins, 90, 10);
-      ctx.fillText('TIME', 196, 10);
-      ctx.fillText(String(Math.max(0,time)), 200, 20);
-
-      // Title screen
-      if (state === 'TITLE') {
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(0, 50, W, 100);
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 10px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('SUPER MARIO EVOLUTION 2', 128, 80);
-        ctx.font = '8px monospace';
-        ctx.fillText('← → or A/D to Move', 128, 105);
-        ctx.fillText('↑ or W to Jump', 128, 115);
-        ctx.fillText('PRESS SPACE OR TAP TO START', 128, 135);
-        ctx.textAlign = 'left';
-      }
-
-      // Game over / Win
-      if (state === 'GAME_OVER') {
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.fillRect(50, 80, 156, 50);
-        ctx.fillStyle = '#ff0';
-        ctx.font = 'bold 10px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('GAME OVER', 128, 105);
-        ctx.fillStyle = '#aaa';
-        ctx.font = '8px monospace';
-        ctx.fillText('Press R to Restart', 128, 120);
-        ctx.textAlign = 'left';
-      }
-      if (state === 'WIN') {
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.fillRect(50, 80, 156, 60);
-        ctx.fillStyle = '#0f0';
-        ctx.font = 'bold 10px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('🏆 LEVEL CLEAR!', 128, 100);
-        ctx.fillStyle = '#ff0';
-        ctx.font = '8px monospace';
-        ctx.fillText('Score: ' + score, 128, 115);
-        ctx.fillStyle = '#aaa';
-        ctx.fillText('Press R to Restart', 128, 130);
-        ctx.textAlign = 'left';
-      }
+  enemies.forEach(e => {
+    if (e.alive) {
+      ctx.fillStyle = "#743800";
+      ctx.fillRect(e.x, e.y, e.w, e.h);
     }
+  });
 
-    // ── 9. Loop ──
-    function loop() {
-      update();
-      draw();
-      requestAnimationFrame(loop);
+  if (mario.invulnerableTimer % 4 < 2) {
+    if (mario.starTimer > 0) {
+      const colors = ["#fcfc00", "#fc3800", "#00a800", "#fcfcfc"];
+      ctx.fillStyle = colors[Math.floor(Date.now() / 60) % colors.length];
+    } else if (mario.state === 2) {
+      ctx.fillStyle = "#fcfcfc";
+    } else {
+      ctx.fillStyle = mario.dead ? "#555" : "#e40058";
     }
+    ctx.fillRect(mario.x, mario.y, mario.w, mario.h);
+  }
 
-    // ── Start ──
-    document.addEventListener('keydown', e => {
-      if (e.code === 'Space' || e.code === 'Enter') {
-        if (state === 'TITLE') resetGame();
-      }
-      if (e.code === 'KeyR') {
-        if (state === 'GAME_OVER' || state === 'WIN') resetGame();
-      }
-    });
-    canvas.addEventListener('click', () => { if (state === 'TITLE') resetGame(); });
-    canvas.addEventListener('touchstart', e => { e.preventDefault(); if (state === 'TITLE') resetGame(); });
+  ctx.restore();
 
-    loop();
-  </script>
+  if (mario.dead) {
+    ctx.fillStyle = "#fff";
+    ctx.font = "14px monospace";
+    ctx.fillText("GAME OVER - Press R to Restart", 30, 120);
+  } else if (win) {
+    ctx.fillStyle = "#fcfc00";
+    ctx.font = "14px monospace";
+    ctx.fillText("STAGE CLEAR! Press R to Restart", 25, 120);
+  }
+}
+
+window.addEventListener("keydown", e => {
+  if (e.code === "KeyR" && (mario.dead || win)) location.reload();
+});
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
 </body>
 </html>
