@@ -33,6 +33,7 @@
 
 <div class="hud">
   <span>STATUS: <b id="ui-state">SMALL</b></span>
+  NYAWA: <b id="ui-lives">3</b>
   <span>SCORE: <b id="ui-score">00000</b></span>
   <span>STAR: <b id="ui-star">OFF</b></span>
 </div>
@@ -41,6 +42,20 @@
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const bgImage = new Image();
+bgImage.src = "assets/platformer-mountains.png";
+let audioCtx = null;
+function sound(freq, duration = 0.08, type = "square") {
+  try {
+    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = type; osc.frequency.value = freq; gain.gain.value = 0.045;
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.stop(audioCtx.currentTime + duration);
+  } catch (_) {}
+}
+function musicTick() { sound(196, 0.04, "triangle"); }
 
 canvas.style.width = "768px";
 canvas.style.height = "720px";
@@ -78,8 +93,17 @@ const mapWidth = rawMap[0].length;
 const mapHeight = rawMap.length;
 
 let score = 0;
+let lives = 3;
+let stageIndex = 0;
+const STAGES = [
+  { name: "Kampung Pagi", start: 24, flag: 70 },
+  { name: "Sawah Kelantan", start: 24, flag: 84 },
+  { name: "Rimba Tok Bali", start: 24, flag: 96 }
+];
 let cameraX = 0;
 let win = false;
+let gameOver = false;
+let stageClearTimer = 0;
 
 // 0: Small, 1: Super, 2: Fire
 const mario = {
@@ -161,16 +185,47 @@ function shootFireball() {
 function damageMario() {
   if (mario.starTimer > 0 || mario.invulnerableTimer > 0) return;
   if (mario.state > 0) {
+    // Super/Fire Mario → becomes Small with i-frames, don't lose life
     mario.state = 0;
     mario.h = 15;
+    mario.y -= 7;
     mario.invulnerableTimer = 120;
   } else {
-    mario.dead = true;
+    // Small Mario → lose a life
+    loseLife();
   }
 }
 
+function resetStage() {
+  mario.x = STAGES[stageIndex].start; mario.y = 160; mario.vx = 0; mario.vy = 0;
+  mario.dead = false; mario.state = 0; mario.h = 15; mario.starTimer = 0; mario.invulnerableTimer = 0;
+  cameraX = 0; win = false;
+  enemies.forEach((e, i) => { e.alive = true; e.x = 180 + i * 180 + stageIndex * 24; e.vx = i % 2 ? 0.5 : -0.5; });
+}
+function loseLife() {
+  if (mario.dead || win || gameOver) return;
+  lives--;
+  sound(110, 0.18, "sawtooth");
+  if (lives <= 0) { gameOver = true; mario.dead = true; return; }
+  mario.dead = true;
+  setTimeout(() => { resetStage(); mario.invulnerableTimer = 120; }, 700);
+}
+function advanceStage() {
+  sound(784, 0.12, "square");
+  stageIndex++;
+  if (stageIndex >= STAGES.length) { win = true; sound(988, 0.25, "triangle"); return; }
+  stageClearTimer = 45;
+  resetStage();
+}
+
+function resetGame() {
+  score = 0; lives = 3; stageIndex = 0; gameOver = false; win = false;
+  resetStage();
+  musicTick();
+}
+
 function update() {
-  if (mario.dead || win) return;
+  if (mario.dead || win || gameOver) return;
 
   if (mario.starTimer > 0) mario.starTimer--;
   if (mario.invulnerableTimer > 0) mario.invulnerableTimer--;
@@ -210,11 +265,14 @@ function update() {
     mario.vy = 0;
   }
 
-  if (mario.y > 240) mario.dead = true;
+  function loseLife() {
+  if (lives > 1) { lives--; resetStage(); } 
+  else { gameOver = true; setTimeout(() => { alert("GAME OVER\nSCORE: " + score); location.reload(); }, 2000); }
+}
 
   const currentTileX = Math.floor((mario.x + mario.w / 2) / TILE_SIZE);
   const currentTileY = Math.floor((mario.y + mario.h / 2) / TILE_SIZE);
-  if (getTile(currentTileX, currentTileY) === 'L') win = true;
+  if (getTile(currentTileX, currentTileY) === 'L') advanceStage();
 
   if (mario.x - cameraX > 110) cameraX = mario.x - 110;
   if (mario.x < cameraX) mario.x = cameraX;
@@ -289,9 +347,6 @@ function update() {
         score += 100;
       } else {
         damageMario();
-      }
-    }
-  });
 
   const stateNames = ["SMALL", "SUPER", "FIRE"];
   document.getElementById("ui-state").innerText = stateNames[mario.state];
