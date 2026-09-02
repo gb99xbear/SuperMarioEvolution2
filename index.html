@@ -449,23 +449,23 @@ function draw() {
   for (let r = 0; r < mapHeight; r++) {
     for (let c = 0; c < mapWidth; c++) {
       const t = rawMap[r][c];
-      const px = c * TILE_SIZE;
-      const py = r * TILE_SIZE;
+      const tileX = c * TILE_SIZE;
+      const tileY = r * TILE_SIZE;
 
       if (t === '#') {
-        drawBrickTile(px, py, r === 13);
+        drawBrickTile(tileX, tileY, r === 13);
       } else if (t === 'M' || t === 'F' || t === 'S') {
         ctx.fillStyle = "#fc9838";
-        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+        ctx.fillRect(tileX, tileY, TILE_SIZE, TILE_SIZE);
         ctx.strokeStyle = "#9b4c12";
-        ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+        ctx.strokeRect(tileX + 1, tileY + 1, TILE_SIZE - 2, TILE_SIZE - 2);
         ctx.fillStyle = "#fff3b0";
         ctx.font = "bold 11px monospace";
-        ctx.fillText("?", px + 4, py + 12);
+        ctx.fillText("?", tileX + 4, tileY + 12);
       } else if (t === 'P') {
-        drawPipeTile(px, py, c, r);
+        drawPipeTile(tileX, tileY, c, r);
       } else if (t === 'L') {
-        drawFlagTile(px, py, c, r);
+        drawFlagTile(tileX, tileY, c, r);
       }
     }
   }
