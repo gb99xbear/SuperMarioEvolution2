@@ -347,6 +347,9 @@ function update() {
         score += 100;
       } else {
         damageMario();
+      }
+    }
+  });
 
   const stateNames = ["SMALL", "SUPER", "FIRE"];
   document.getElementById("ui-state").innerText = stateNames[mario.state];
