@@ -72,7 +72,7 @@ let rawMap = [
   "..................P........####.........P...............P................##.......L.......#..#......",
   "###################..####################..##############..################..#######################",
   "###################..####################..##############..################..#######################"
-].map(row => row.split(\'\'));
+].map(row => row.split(''));
 
 const mapWidth = rawMap[0].length;
 const mapHeight = rawMap.length;
@@ -106,12 +106,12 @@ const enemies = [
 ];
 
 function getTile(tx, ty) {
-  if (tx < 0 || tx >= mapWidth || ty < 0 || ty >= mapHeight) return \'.\';
+  if (tx < 0 || tx >= mapWidth || ty < 0 || ty >= mapHeight) return '.';
   return rawMap[ty][tx];
 }
 
 function isSolid(tile) {
-  return tile === \'#\' || tile === \'P\' || tile === \'M\' || tile === \'F\' || tile === \'S\';
+  return tile === '#' || tile === 'P' || tile === 'M' || tile === 'F' || tile === 'S';
 }
 
 function checkTileCollision(x, y, w, h) {
@@ -131,14 +131,14 @@ function checkTileCollision(x, y, w, h) {
 }
 
 function triggerBlock(tx, ty, tile) {
-  if (tile === \'M\' || tile === \'F\' || tile === \'S\') {
-    rawMap[ty][tx] = \'#\';
+  if (tile === 'M' || tile === 'F' || tile === 'S') {
+    rawMap[ty][tx] = '#';
     items.push({
       type: tile,
       x: tx * TILE_SIZE,
       y: (ty - 1) * TILE_SIZE,
-      vx: tile === \'F\' ? 0 : 1,
-      vy: tile === \'S\' ? -3 : -1,
+      vx: tile === 'F' ? 0 : 1,
+      vy: tile === 'S' ? -3 : -1,
       w: 12,
       h: 12,
       grounded: false
@@ -214,7 +214,7 @@ function update() {
 
   const currentTileX = Math.floor((mario.x + mario.w / 2) / TILE_SIZE);
   const currentTileY = Math.floor((mario.y + mario.h / 2) / TILE_SIZE);
-  if (getTile(currentTileX, currentTileY) === \'L\') win = true;
+  if (getTile(currentTileX, currentTileY) === 'L') win = true;
 
   if (mario.x - cameraX > 110) cameraX = mario.x - 110;
   if (mario.x < cameraX) mario.x = cameraX;
@@ -229,17 +229,17 @@ function update() {
     const itColY = checkTileCollision(it.x, it.y, it.w, it.h);
     if (itColY.hit) {
       it.y -= it.vy;
-      if (it.type === \'S\') it.vy = -3.5;
+      if (it.type === 'S') it.vy = -3.5;
       else { it.vy = 0; it.grounded = true; }
     }
     if (mario.x < it.x + it.w && mario.x + mario.w > it.x &&
         mario.y < it.y + it.h && mario.y + mario.h > it.y) {
-      if (it.type === \'M\') {
+      if (it.type === 'M') {
         if (mario.state === 0) { mario.state = 1; mario.y -= 7; mario.h = 22; }
-      } else if (it.type === \'F\') {
+      } else if (it.type === 'F') {
         mario.state = 2;
         if (mario.h === 15) { mario.y -= 7; mario.h = 22; }
-      } else if (it.type === \'S\') {
+      } else if (it.type === 'S') {
         mario.starTimer = 600;
       }
       score += 1000;
@@ -295,7 +295,7 @@ function update() {
 
   const stateNames = ["SMALL", "SUPER", "FIRE"];
   document.getElementById("ui-state").innerText = stateNames[mario.state];
-  document.getElementById("ui-score").innerText = String(score).padStart(5, \'0\');
+  document.getElementById("ui-score").innerText = String(score).padStart(5, '0');
   document.getElementById("ui-star").innerText = mario.starTimer > 0 ? (Math.ceil(mario.starTimer/60) + "s") : "OFF";
 }
 
@@ -310,18 +310,18 @@ function draw() {
       const px = c * TILE_SIZE;
       const py = r * TILE_SIZE;
 
-      if (t === \'#\') {
+      if (t === '#') {
         ctx.fillStyle = "#b84418";
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      } else if (t === \'M\' || t === \'F\' || t === \'S\') {
+      } else if (t === 'M' || t === 'F' || t === 'S') {
         ctx.fillStyle = "#fc9838";
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
         ctx.fillStyle = "#fff";
         ctx.fillText("?", px + 4, py + 12);
-      } else if (t === \'P\') {
+      } else if (t === 'P') {
         ctx.fillStyle = "#00a800";
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      } else if (t === \'L\') {
+      } else if (t === 'L') {
         ctx.fillStyle = "#fcfcfc";
         ctx.fillRect(px + 6, py, 4, TILE_SIZE);
       }
@@ -329,9 +329,9 @@ function draw() {
   }
 
   items.forEach(it => {
-    if (it.type === \'M\') ctx.fillStyle = "#fc3800";
-    else if (it.type === \'F\') ctx.fillStyle = "#ff77aa";
-    else if (it.type === \'S\') ctx.fillStyle = "#fcfc00";
+    if (it.type === 'M') ctx.fillStyle = "#fc3800";
+    else if (it.type === 'F') ctx.fillStyle = "#ff77aa";
+    else if (it.type === 'S') ctx.fillStyle = "#fcfc00";
     ctx.fillRect(it.x, it.y, it.w, it.h);
   });
 
