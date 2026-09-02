@@ -69,7 +69,7 @@
     }
     canvas {
       display: block;
-      background: #5c94fc;
+      background: #2b1810;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       border: 2px solid #000;
@@ -818,36 +818,29 @@ function drawCastle(x, y) {
   px(x + 12, y + 8, 2, 4, "#666");
   px(x + 26, y + 8, 2, 4, "#666");
 }
+// Static Kampung background image (houses, mountains, sunset, wooden floor).
+// Loaded once, drawn each frame WITHOUT scrolling (per spec).
+const kampungBg = new Image();
+kampungBg.src = "assets/kampung-bg.jpg";
+let kampungBgReady = false;
+kampungBg.onload = () => { kampungBgReady = true; };
+
 function drawBackground(parallax) {
-  ctx.fillStyle = "#5c94fc";
+  // Image takes full canvas (256×240) — stretched, not tiled, static.
+  if (kampungBgReady) {
+    ctx.drawImage(kampungBg, 0, 0, canvas.width, canvas.height);
+  } else {
+    // Placeholder gradient sky while image loads
+    const grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grd.addColorStop(0, "#ff9b6a");
+    grd.addColorStop(0.5, "#f7c97a");
+    grd.addColorStop(1, "#9b6b3f");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  // Subtle warm haze overlay so the image is not too loud behind gameplay
+  ctx.fillStyle = "rgba(40, 20, 10, 0.10)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const clouds = [[24, 34, 22], [126, 25, 28], [224, 48, 20]];
-  clouds.forEach(([x, y, w]) => {
-    const cx = x - (parallax % 256);
-    px(cx, y + 4, w, 7, "#fff"); px(cx + 5, y, w - 11, 5, "#fff");
-    px(cx + 3, y + 9, w - 6, 2, "#dcecff");
-  });
-  ctx.fillStyle = "#8bd17c";
-  ctx.beginPath(); ctx.moveTo(0, 157);
-  for (let x = 0; x <= 256; x += 16) ctx.lineTo(x, 157 - (Math.sin((x + parallax) * 0.045) * 10 + 12));
-  ctx.lineTo(256, 208); ctx.lineTo(0, 208); ctx.fill();
-  ctx.fillStyle = "#3a9a5b";
-  ctx.beginPath(); ctx.moveTo(0, 184);
-  for (let x = 0; x <= 256; x += 12) ctx.lineTo(x, 184 - (Math.sin((x + parallax) * 0.08) * 7 + 7));
-  ctx.lineTo(256, 208); ctx.lineTo(0, 208); ctx.fill();
-  for (let i = 0; i < 4; i++) {
-    const hx = i * 92 - (parallax % 92) + 28;
-    px(hx, 174, 24, 18, "#7a4b32");
-    ctx.fillStyle = "#5c2b2b";
-    ctx.beginPath(); ctx.moveTo(hx - 5, 174); ctx.lineTo(hx + 12, 162); ctx.lineTo(hx + 29, 174); ctx.fill();
-    px(hx + 7, 183, 5, 9, "#2b4d32"); px(hx + 17, 183, 5, 9, "#2b4d32");
-    px(hx + 11, 178, 5, 6, "#f3c75b");
-  }
-  for (let i = 0; i < 5; i++) {
-    const tx = i * 68 - (parallax % 68) + 12;
-    px(tx, 164, 3, 30, "#6b4827");
-    px(tx - 8, 157, 19, 3, "#176b3b"); px(tx - 5, 151, 13, 3, "#1c8043"); px(tx - 2, 146, 7, 4, "#2b9b4f");
-  }
 }
 
 function renderLifeIcons() {
@@ -1000,16 +993,22 @@ function draw() {
 let gameOverT = 0;
 
 function drawTitle() {
-  ctx.fillStyle = "#5c94fc";
+  // Use the static Kampung background on the title screen too
+  if (kampungBgReady) {
+    ctx.drawImage(kampungBg, 0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = "#5c94fc";
+    ctx.fillRect(0, 0, 256, 240);
+  }
+  // Subtle dark overlay so the title is readable on top of the bg
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
   ctx.fillRect(0, 0, 256, 240);
-  // Big ground block at bottom
-  ctx.fillStyle = "#9f3218";
+  // Decorative wooden plank strip at bottom
+  ctx.fillStyle = "#7a4b32";
   ctx.fillRect(0, 200, 256, 40);
-  ctx.fillStyle = "#c84c24";
-  ctx.fillRect(0, 200, 256, 4);
+  ctx.fillStyle = "#9b5a3a";
+  for (let p = 0; p < 256; p += 16) ctx.fillRect(p, 200, 1, 40);
   // Title text
-  ctx.fillStyle = "rgba(0,0,0,0.45)";
-  ctx.fillRect(0, 0, 256, 200);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 12px monospace";
   ctx.textAlign = "center";
@@ -1018,7 +1017,7 @@ function drawTitle() {
   ctx.fillStyle = "#fff";
   ctx.font = "bold 8px monospace";
   ctx.fillText("EDISI KELANTAN", 128, 82);
-  // Decorative Mario silhouette
+  // Decorative Abe Yo silhouettes
   drawMario(108, 110, 12, 15, 1, 0, false, false);
   drawMario(136, 110, 12, 15, 1, 2, false, false);
   // Press start
@@ -1030,9 +1029,9 @@ function drawTitle() {
   }
   ctx.fillStyle = "#ffd166";
   ctx.font = "6px monospace";
-  ctx.fillText("A/D atau PANAH  - GERAK", 128, 184);
-  ctx.fillText("SPACE     - LOMPAT", 128, 192);
-  ctx.fillText("SHIFT     - PANCAI", 128, 200);
+  ctx.fillText("A/D atau PANAH  - GERAK", 128, 218);
+  ctx.fillText("SPACE     - LOMPAT", 128, 226);
+  ctx.fillText("SHIFT     - PANCAI", 128, 234);
   ctx.textAlign = "left";
 }
 
