@@ -362,6 +362,46 @@ function drawPowerItem(it) {
   }
 }
 
+function drawBrickTile(x, y, topGround = false) {
+  // Warm red brick with dark mortar, bevel and subtle top highlight.
+  px(x, y, TILE_SIZE, TILE_SIZE, '#9f3218');
+  px(x + 1, y + 1, TILE_SIZE - 2, TILE_SIZE - 2, '#c84c24');
+  px(x + 1, y + 1, TILE_SIZE - 2, 2, '#e06a32');
+  ctx.strokeStyle = '#762313';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, y + 8.5); ctx.lineTo(x + TILE_SIZE, y + 8.5);
+  ctx.moveTo(x + 8.5, y); ctx.lineTo(x + 8.5, y + 8);
+  ctx.moveTo(x + 4.5, y + 9); ctx.lineTo(x + 4.5, y + TILE_SIZE);
+  ctx.stroke();
+  if (topGround) px(x, y, TILE_SIZE, 2, '#6fbd35');
+}
+
+function drawPipeTile(x, y, col, row) {
+  const above = row > 0 ? tilemap[row - 1]?.[col] : '.';
+  const isHead = above !== 'P';
+  const left = isHead ? x - 2 : x + 2;
+  const width = isHead ? TILE_SIZE + 4 : TILE_SIZE - 4;
+  // dark outline, shaded green body, bright left edge
+  px(left, y, width, TILE_SIZE, '#075b20');
+  px(left + 2, y, width - 4, TILE_SIZE, '#00a83b');
+  px(left + 3, y, 3, TILE_SIZE, '#53d45a');
+  px(left + width - 4, y, 2, TILE_SIZE, '#007126');
+  if (isHead) {
+    px(x - 3, y, TILE_SIZE + 6, 3, '#064b1b');
+    px(x - 1, y + 1, TILE_SIZE + 2, 2, '#13c84d');
+  }
+}
+
+function drawFlagTile(x, y, col, row) {
+  px(x + 6, y, 3, TILE_SIZE, '#eee');
+  const above = row > 0 ? tilemap[row - 1]?.[col] : '.';
+  if (above !== 'L') {
+    px(x + 8, y + 1, 8, 5, '#e3262e');
+    px(x + 8, y + 2, 6, 2, '#ffcf35');
+  }
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
@@ -374,8 +414,7 @@ function draw() {
       const py = r * TILE_SIZE;
 
       if (t === '#') {
-        ctx.fillStyle = "#b84418";
-        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+        drawBrickTile(px, py, r === 13);
       } else if (t === 'M' || t === 'F' || t === 'S') {
         ctx.fillStyle = "#fc9838";
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
@@ -385,11 +424,9 @@ function draw() {
         ctx.font = "bold 11px monospace";
         ctx.fillText("?", px + 4, py + 12);
       } else if (t === 'P') {
-        ctx.fillStyle = "#00a800";
-        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+        drawPipeTile(px, py, c, r);
       } else if (t === 'L') {
-        ctx.fillStyle = "#fcfcfc";
-        ctx.fillRect(px + 6, py, 4, TILE_SIZE);
+        drawFlagTile(px, py, c, r);
       }
     }
   }
@@ -413,12 +450,21 @@ function draw() {
 
   if (mario.dead) {
     ctx.fillStyle = "#fff";
-    ctx.font = "14px monospace";
-    ctx.fillText("GAME OVER - Press R to Restart", 30, 120);
+    ctx.font = "bold 10px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("GAME OVER", 128, 112);
+    ctx.font = "7px monospace";
+    ctx.fillText("PRESS R TO RESTART", 128, 126);
+    ctx.textAlign = "left";
   } else if (win) {
     ctx.fillStyle = "#fcfc00";
-    ctx.font = "14px monospace";
-    ctx.fillText("STAGE CLEAR! Press R to Restart", 25, 120);
+    ctx.font = "bold 10px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("STAGE CLEAR!", 128, 112);
+    ctx.fillStyle = "#fff";
+    ctx.font = "7px monospace";
+    ctx.fillText("PRESS R TO RESTART", 128, 126);
+    ctx.textAlign = "left";
   }
 }
 
