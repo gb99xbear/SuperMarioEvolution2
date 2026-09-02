@@ -265,11 +265,6 @@ function update() {
     mario.vy = 0;
   }
 
-  function loseLife() {
-  if (lives > 1) { lives--; resetStage(); } 
-  else { gameOver = true; setTimeout(() => { alert("GAME OVER\nSCORE: " + score); location.reload(); }, 2000); }
-}
-
   const currentTileX = Math.floor((mario.x + mario.w / 2) / TILE_SIZE);
   const currentTileY = Math.floor((mario.y + mario.h / 2) / TILE_SIZE);
   if (getTile(currentTileX, currentTileY) === 'L') advanceStage();
@@ -355,6 +350,8 @@ function update() {
   document.getElementById("ui-state").innerText = stateNames[mario.state];
   document.getElementById("ui-score").innerText = String(score).padStart(5, '0');
   document.getElementById("ui-star").innerText = mario.starTimer > 0 ? (Math.ceil(mario.starTimer/60) + "s") : "OFF";
+  const livesEl = document.getElementById("ui-lives");
+  if (livesEl) livesEl.innerText = gameOver ? 0 : Math.max(0, lives);
 }
 
 // Native-resolution pixel-art sprites: layered silhouettes, highlights and outlines.
@@ -545,13 +542,23 @@ function draw() {
 
   ctx.restore();
 
-  if (mario.dead) {
+  if (mario.dead && !gameOver) {
     ctx.fillStyle = "#fff";
     ctx.font = "bold 10px monospace";
     ctx.textAlign = "center";
     ctx.fillText("GAME OVER", 128, 112);
     ctx.font = "7px monospace";
     ctx.fillText("PRESS R TO RESTART", 128, 126);
+    ctx.textAlign = "left";
+  } else if (gameOver) {
+    ctx.fillStyle = "#d62828";
+    ctx.font = "bold 11px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("GAME OVER", 128, 108);
+    ctx.fillStyle = "#fff";
+    ctx.font = "7px monospace";
+    ctx.fillText("SCORE: " + String(score).padStart(5, '0'), 128, 122);
+    ctx.fillText("PRESS R TO RESTART", 128, 136);
     ctx.textAlign = "left";
   } else if (win) {
     ctx.fillStyle = "#fcfc00";
@@ -566,7 +573,7 @@ function draw() {
 }
 
 window.addEventListener("keydown", e => {
-  if (e.code === "KeyR" && (mario.dead || win)) location.reload();
+  if (e.code === "KeyR" && (mario.dead || win || gameOver)) resetGame();
 });
 
 function gameLoop() {
