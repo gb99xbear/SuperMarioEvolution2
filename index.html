@@ -731,29 +731,32 @@ adiBigImg.onload = () => { adiBigReady = true; };
 
 function drawMario(x, y, w, h, facing, state, star, dead) {
   x = Math.round(x); y = Math.round(y);
-  // Star power: rainbow tint by swapping to a colored overlay
   const useAdi = (state === 0 ? adiSmallReady : adiBigReady) ||
                  (state === 0 ? adiSmallImg : adiBigImg).complete;
   if (useAdi && !dead) {
     const img = state === 0 ? adiSmallImg : adiBigImg;
-    const sw = img.naturalWidth || (state === 0 ? 12 : 16);
-    const sh = img.naturalHeight || (state === 0 ? 12 : 20);
-    // Scale sprite to fit hitbox w×h
+    const sw = img.naturalWidth || (state === 0 ? 18 : 24);
+    const sh = img.naturalHeight || (state === 0 ? 32 : 56);
+    // Scale sprite to match hitbox height (h), keeping aspect ratio
+    const drawH = h + 4; // sprite slightly taller than hitbox for visibility
+    const drawW = Math.round(drawH * sw / sh);
+    const offsetX = (w - drawW) / 2;
+    const drawX = x + offsetX;
+    const drawY = y - 2; // anchor at top
     ctx.save();
     if (facing < 0) {
       ctx.scale(-1, 1);
-      ctx.drawImage(img, 0, 0, sw, sh, -(x + w), y, w, h);
+      ctx.drawImage(img, 0, 0, sw, sh, -(drawX + drawW), drawY, drawW, drawH);
     } else {
-      ctx.drawImage(img, 0, 0, sw, sh, x, y, w, h);
+      ctx.drawImage(img, 0, 0, sw, sh, drawX, drawY, drawW, drawH);
     }
     if (star) {
-      // Rainbow tint overlay
       const tint = ["#ffe60044", "#ff3b3044", "#36d15c44", "#3b82f644"];
       ctx.fillStyle = tint[Math.floor(performance.now() / 90) % tint.length];
       if (facing < 0) {
-        ctx.fillRect(-(x + w), y, w, h);
+        ctx.fillRect(-(drawX + drawW), drawY, drawW, drawH);
       } else {
-        ctx.fillRect(x, y, w, h);
+        ctx.fillRect(drawX, drawY, drawW, drawH);
       }
     }
     ctx.restore();
@@ -762,14 +765,13 @@ function drawMario(x, y, w, h, facing, state, star, dead) {
   // Fallback (before image loads OR dead): draw simple silhouette
   const gray = dead ? "#666" : (star ? "#ff0" : "#e3262e");
   ctx.fillStyle = gray;
-  ctx.fillRect(x + 1, y, w - 2, 3);          // tengkolok
+  ctx.fillRect(x + 1, y, w - 2, 3);
   ctx.fillRect(x, y + 2, w, 2);
   ctx.fillStyle = state === 0 ? "#f5a15b" : "#ffd08b";
   ctx.fillRect(x + 2, y + 4, w - 4, h - 4);
   ctx.fillStyle = gray;
   ctx.fillRect(x, y + h - 3, w, 3);
   if (state > 0) {
-    // Big Adi: extra detail
     ctx.fillStyle = "#ffd166";
     ctx.fillRect(x + 2, y + h - 6, w - 4, 2);
   }
@@ -885,8 +887,10 @@ function renderLifeIcons() {
     // Use the real Adi sprite (Small Adi) for the HUD lives icon
     span.src = "assets/adi-small.png";
     span.alt = "♥";
+    // Aspect-preserved: width 18, height computed from natural size
     span.style.width = "18px";
-    span.style.height = "18px";
+    span.style.height = "32px";
+    span.style.objectFit = "none";
     span.style.imageRendering = "pixelated";
     span.style.display = "inline-block";
     span.style.verticalAlign = "middle";
@@ -1046,9 +1050,17 @@ function drawTitle() {
   ctx.fillStyle = "#fff";
   ctx.font = "bold 8px monospace";
   ctx.fillText("EDISI KELANTAN", 128, 82);
-  // Decorative Adi silhouettes (using real sprites)
-  if (adiSmallReady) ctx.drawImage(adiSmallImg, 102, 105, 18, 18);
-  if (adiBigReady) ctx.drawImage(adiBigImg, 124, 95, 20, 25);
+  // Decorative Adi silhouettes (using real sprites, aspect-preserved)
+  if (adiSmallReady) {
+    const sw = adiSmallImg.naturalWidth || 18, sh = adiSmallImg.naturalHeight || 32;
+    const drawW = 22, drawH = Math.round(drawW * sh / sw);
+    ctx.drawImage(adiSmallImg, 102, 110 - drawH, drawW, drawH);
+  }
+  if (adiBigReady) {
+    const sw = adiBigImg.naturalWidth || 24, sh = adiBigImg.naturalHeight || 56;
+    const drawH = 60, drawW = Math.round(drawH * sw / sh);
+    ctx.drawImage(adiBigImg, 132 - drawW / 2, 130 - drawH, drawW, drawH);
+  }
   // Press start
   const blink = Math.floor(performance.now() / 500) % 2 === 0;
   if (blink) {
