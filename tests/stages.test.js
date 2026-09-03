@@ -1,7 +1,7 @@
 // Validate the World 1-1-inspired stage layout.
 const TILE_SIZE = 16;
 const STAGE_ROWS = 15;
-const STAGE_COLS_BY_IDX = [212, 232, 252];
+const STAGE_COLS_BY_IDX = [223, 244, 265];
 
 function buildStage(seed) {
   const W = STAGE_COLS_BY_IDX[seed];
@@ -9,9 +9,9 @@ function buildStage(seed) {
   for (let r = 0; r < STAGE_ROWS; r++) rows.push(new Array(W).fill("."));
   for (let c = 0; c < W; c++) { rows[13][c] = "#"; rows[14][c] = "#"; }
   const pitSets = [
-    [[69, 71], [85, 87]],
-    [[69, 71], [85, 87], [128, 130]],
-    [[69, 71], [85, 87], [128, 130], [165, 167]]
+    [[72, 74], [89, 91]],
+    [[72, 74], [89, 91], [134, 136]],
+    [[72, 74], [89, 91], [134, 136], [173, 175]]
   ];
   (pitSets[seed] || pitSets[0]).forEach(([a, b]) => {
     if (a < W && b < W) for (let c = a; c <= b; c++) { rows[13][c] = "."; rows[14][c] = "."; }
@@ -32,7 +32,7 @@ function buildStage(seed) {
     [148, 11, "B"], [150, 11, "?"], [152, 11, "B"],
     [160, 10, "B"], [162, 10, "B"], [164, 10, "?"], [166, 10, "B"]
   ];
-  const stairStart = seed === 0 ? 196 : (seed === 1 ? 216 : 236);
+  const stairStart = seed === 0 ? 206 : (seed === 1 ? 227 : 248);
   for (let step = 0; step < 8; step++) {
     for (let w = 0; w < step + 1; w++) {
       const col = stairStart + step * 2 + w;
@@ -59,9 +59,9 @@ const s1 = buildStage(1);
 const s2 = buildStage(2);
 
 // Stage lengths
-assert("Stage 1 = 212 tiles", s0[0].length === 212);
-assert("Stage 2 = 232 tiles", s1[0].length === 232);
-assert("Stage 3 = 252 tiles", s2[0].length === 252);
+assert("Stage 1 = 223 tiles", s0[0].length === 223);
+assert("Stage 2 = 244 tiles", s1[0].length === 244);
+assert("Stage 3 = 265 tiles", s2[0].length === 265);
 
 // World 1-1-style pit placement: pits must be in row 13-14 with 2-tile gap
 function getPitCols(rows) {
@@ -73,8 +73,8 @@ function getPitCols(rows) {
 }
 const s0Pits = getPitCols(s0);
 assert("Stage 1 has 6 pit cells (2 pits × 3 rows of air)", s0Pits.length === 6);
-assert("Stage 1 first pit at col 69-71", s0Pits.includes(69) && s0Pits.includes(70) && s0Pits.includes(71));
-assert("Stage 1 second pit at col 85-87", s0Pits.includes(85) && s0Pits.includes(86) && s0Pits.includes(87));
+assert("Stage 1 first pit at col 72-74", s0Pits.includes(72) && s0Pits.includes(73) && s0Pits.includes(74));
+assert("Stage 1 second pit at col 89-91", s0Pits.includes(89) && s0Pits.includes(90) && s0Pits.includes(91));
 
 const s2Pits = getPitCols(s2);
 assert("Stage 3 has 12 pit cells (4 pits)", s2Pits.length === 12);
