@@ -735,21 +735,29 @@ function drawMario(x, y, w, h, facing, state, star, dead) {
                  (state === 0 ? adiSmallImg : adiBigImg).complete;
   if (useAdi && !dead) {
     const img = state === 0 ? adiSmallImg : adiBigImg;
-    const sw = img.naturalWidth || (state === 0 ? 18 : 24);
-    const sh = img.naturalHeight || (state === 0 ? 32 : 56);
-    // Scale sprite to match hitbox height (h), keeping aspect ratio
-    const drawH = h + 4; // sprite slightly taller than hitbox for visibility
+    const sw = img.naturalWidth || (state === 0 ? 223 : 471);
+    const sh = img.naturalHeight || (state === 0 ? 398 : 1072);
+    // Scale sprite to be much larger than hitbox for visibility.
+    // In-game draw size: ~36px tall for small, ~50px tall for big.
+    // The source is high-res pixel art, so we use image smoothing
+    // to render cleanly when scaled down.
+    const drawH = state === 0 ? 36 : 50;
     const drawW = Math.round(drawH * sw / sh);
-    const offsetX = (w - drawW) / 2;
-    const drawX = x + offsetX;
-    const drawY = y - 2; // anchor at top
+    // Anchor so feet align with the hitbox bottom
+    const drawX = x + (w - drawW) / 2;
+    const drawY = y + h - drawH;
     ctx.save();
+    // Enable smooth scaling (this is pixel-art source but it's
+    // high-resolution, so smooth gives a clean sprite)
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     if (facing < 0) {
       ctx.scale(-1, 1);
       ctx.drawImage(img, 0, 0, sw, sh, -(drawX + drawW), drawY, drawW, drawH);
     } else {
       ctx.drawImage(img, 0, 0, sw, sh, drawX, drawY, drawW, drawH);
     }
+    ctx.imageSmoothingEnabled = false;
     if (star) {
       const tint = ["#ffe60044", "#ff3b3044", "#36d15c44", "#3b82f644"];
       ctx.fillStyle = tint[Math.floor(performance.now() / 90) % tint.length];
@@ -887,14 +895,13 @@ function renderLifeIcons() {
     // Use the real Adi sprite (Small Adi) for the HUD lives icon
     span.src = "assets/adi-small.png";
     span.alt = "♥";
-    // Aspect-preserved: width 18, height computed from natural size
-    span.style.width = "18px";
-    span.style.height = "32px";
-    span.style.objectFit = "none";
-    span.style.imageRendering = "pixelated";
+    // Aspect-preserved at larger size for clarity
+    span.style.width = "26px";
+    span.style.height = "auto";
+    span.style.imageRendering = "auto"; // browser smooth scales the high-res source
     span.style.display = "inline-block";
     span.style.verticalAlign = "middle";
-    span.style.marginRight = "2px";
+    span.style.marginRight = "4px";
     host.appendChild(span);
     lifeIcons.push(span);
   }
@@ -1052,14 +1059,18 @@ function drawTitle() {
   ctx.fillText("EDISI KELANTAN", 128, 82);
   // Decorative Adi silhouettes (using real sprites, aspect-preserved)
   if (adiSmallReady) {
-    const sw = adiSmallImg.naturalWidth || 18, sh = adiSmallImg.naturalHeight || 32;
-    const drawW = 22, drawH = Math.round(drawW * sh / sw);
-    ctx.drawImage(adiSmallImg, 102, 110 - drawH, drawW, drawH);
+    const sw = adiSmallImg.naturalWidth || 223, sh = adiSmallImg.naturalHeight || 398;
+    const drawH = 60, drawW = Math.round(drawH * sw / sh);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(adiSmallImg, 70, 80, drawW, drawH);
+    ctx.imageSmoothingEnabled = false;
   }
   if (adiBigReady) {
-    const sw = adiBigImg.naturalWidth || 24, sh = adiBigImg.naturalHeight || 56;
-    const drawH = 60, drawW = Math.round(drawH * sw / sh);
-    ctx.drawImage(adiBigImg, 132 - drawW / 2, 130 - drawH, drawW, drawH);
+    const sw = adiBigImg.naturalWidth || 471, sh = adiBigImg.naturalHeight || 1072;
+    const drawH = 80, drawW = Math.round(drawH * sw / sh);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(adiBigImg, 150, 60, drawW, drawH);
+    ctx.imageSmoothingEnabled = false;
   }
   // Press start
   const blink = Math.floor(performance.now() / 500) % 2 === 0;
